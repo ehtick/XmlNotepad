@@ -29,6 +29,9 @@ namespace XmlNotepad
         public FormSchemas()
         {
             InitializeComponent();
+#if DEBUG
+            AddHiddenMenuItems();
+#endif
             DataGridViewBrowseCell template = new DataGridViewBrowseCell();
             template.UndoManager = this._undoManager;
             template.OpenFileDialog = this.openFileDialog1;
@@ -37,6 +40,20 @@ namespace XmlNotepad
             this._undoManager.StateChanged += new EventHandler(undoManager_StateChanged);
         }
 
+        private void AddHiddenMenuItems()
+        {
+            var hidden = new HiddenMenuItems();
+            hidden.Add(clearToolStripMenuItem);
+            hidden.Add(cutToolStripMenuItem);
+            hidden.Add(copyToolStripMenuItem);
+            hidden.Add(pasteToolStripMenuItem);
+            hidden.Add(deleteToolStripMenuItem);
+            hidden.Add(undoToolStripMenuItem);
+            hidden.Add(redoToolStripMenuItem);
+            hidden.Add(addSchemasToolStripMenuItem);
+            hidden.Add(generateXMLInstanceToolStripMenuItem);
+            this.Controls.Add(hidden);
+        }
         void undoManager_StateChanged(object sender, EventArgs e)
         {
             this.UpdateMenuState();
@@ -1171,15 +1188,23 @@ namespace XmlNotepad
         {
             XmlSchema s = XsdInstanceGenerator.GetSchema(e);
             var temp = new XmlDocument();
+            var xmlCache = (XmlCache)GetService(typeof(XmlCache));
             IXmlNamespaceResolver resolver = new MyXmlNamespaceResolver(temp.NameTable);
-            XsdInstanceGenerator generator = new XsdInstanceGenerator(s, resolver);
+            XsdInstanceGenerator generator = new XsdInstanceGenerator(s, resolver, xmlCache.SchemaResolver);
             var doc = generator.Generate(e);
             if (doc != null)
             {
-                var path = System.IO.Path.GetTempFileName();
-                path = System.IO.Path.GetFileNameWithoutExtension(path) + ".xml";
-                doc.Save(path);
-                Program.Launch(path);
+                if (xmlCache.IsEmpty())
+                {
+                    xmlCache.Load(doc);
+                }
+                else
+                {
+                    var path = System.IO.Path.GetTempFileName();
+                    path = System.IO.Path.GetFileNameWithoutExtension(path) + ".xml";
+                    doc.Save(path);
+                    Program.Launch(path);
+                }
             }
             else
             {

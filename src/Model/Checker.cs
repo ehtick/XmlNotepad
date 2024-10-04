@@ -86,6 +86,7 @@ namespace XmlNotepad
             this._info = new XmlSchemaInfo();
             this._nsResolver = new MyXmlNamespaceResolver(doc.NameTable);
             XmlSchemaSet set = new XmlSchemaSet();
+            set.XmlResolver = resolver;
             // Make sure the SchemaCache is up to date with document.
             SchemaCache sc = xcache.SchemaCache;
             foreach (XmlSchema s in doc.Schemas.Schemas())
@@ -173,20 +174,12 @@ namespace XmlNotepad
             {
                 // Give Xsi schemas highest priority.
                 bool result = LoadXsiSchemas(doc, set, resolver);
-
                 SchemaCache sc = this._cache.SchemaCache;
-                foreach (XmlAttribute a in root.Attributes)
+                foreach (string nsuri in this._cache.AllNamespaces)
                 {
-                    if (a.NamespaceURI == "http://www.w3.org/2000/xmlns/")
-                    {
-                        string nsuri = a.Value;
-                        result |= LoadSchemasForNamespace(set, resolver, sc, nsuri, a);
-                    }
+                    result |= LoadSchemasForNamespace(set, resolver, sc, nsuri, root);
                 }
-                if (string.IsNullOrEmpty(root.NamespaceURI))
-                {
-                    result |= LoadSchemasForNamespace(set, resolver, sc, "", root);
-                }
+                result |= LoadSchemasForNamespace(set, resolver, sc, doc.DocumentElement.NamespaceURI, root);
             }
             // Make sure all the required includes or imports are there. 
             // This is making up for a possible bug in XmlSchemaSet where it
@@ -288,6 +281,10 @@ namespace XmlNotepad
         {
             try
             {
+                if (set.Contains(nsuri))
+                {
+                    return false;
+                }
                 Uri baseUri = this._baseUri;
                 if (!string.IsNullOrEmpty(ctx.BaseURI))
                 {
@@ -491,7 +488,7 @@ namespace XmlNotepad
             for (int i = 0, n = text.Length; i < n; i++)
             {
                 char ch = text[i];
-                if ((ch < 20 && ch != 0x9 && ch != 0xa && ch != 0xd) || ch > 0xfffe)
+                if ((ch < 0x20 && ch != 0x9 && ch != 0xa && ch != 0xd) || ch > 0xfffe)
                 {
                     ReportError(Severity.Error, string.Format(Strings.InvalidCharacter, ((int)ch).ToString(), i), ctx);
                 }

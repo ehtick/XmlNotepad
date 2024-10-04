@@ -12,6 +12,7 @@ using System.IO;
 using System.Text;
 using System.Windows.Forms;
 using System.Xml;
+using XmlNotepad.Properties;
 using SR = XmlNotepad.StringResources;
 using SystemTask = System.Threading.Tasks.Task;
 
@@ -89,6 +90,9 @@ namespace XmlNotepad
             //
             InitializeComponent();
 
+#if DEBUG
+            AddHiddenMenuItems();
+#endif
             // Separated out so we can have virtual CreateTreeView without causing WinForms designer to barf.
             InitializeTreeView();
 
@@ -169,6 +173,7 @@ namespace XmlNotepad
             this.ContextMenuStrip = this.contextMenu1;
             New();
 
+            this.xsltViewer.Visible = false;
             if (!testing)
             {
                 _ = AsyncSetup();
@@ -295,6 +300,76 @@ namespace XmlNotepad
             this.tabPageTreeView.Controls.Add(this.xmlTreeView1);
             this.tabPageTreeView.Controls.SetChildIndex(this.xmlTreeView1, 0);
 
+        }
+
+        private void AddHiddenMenuItems()
+        {
+            var hidden = new HiddenMenuItems();
+            hidden.Add(newToolStripMenuItem, true);
+            hidden.Add(openToolStripMenuItem, true);
+            hidden.Add(openSettingsToolStripMenuItem, true);
+            hidden.Add(reloadToolStripMenuItem, true);
+            hidden.Add(saveToolStripMenuItem, true);
+            hidden.Add(saveAsToolStripMenuItem, true);
+            hidden.Add(exitToolStripMenuItem, true);
+            hidden.Add(undoToolStripMenuItem);
+            hidden.Add(redoToolStripMenuItem);
+            hidden.Add(cutToolStripMenuItem);
+            hidden.Add(copyToolStripMenuItem);
+            hidden.Add(pasteToolStripMenuItem);
+            hidden.Add(deleteToolStripMenuItem);
+            hidden.Add(repeatToolStripMenuItem);
+            hidden.Add(insertToolStripMenuItem);
+            hidden.Add(duplicateToolStripMenuItem);
+            hidden.Add(upToolStripMenuItem);
+            hidden.Add(downToolStripMenuItem);
+            hidden.Add(leftToolStripMenuItem);
+            hidden.Add(rightToolStripMenuItem);
+            hidden.Add(findToolStripMenuItem, true);
+            hidden.Add(expandAllToolStripMenuItem);
+            hidden.Add(collapseAllToolStripMenuItem);
+            hidden.Add(statusBarToolStripMenuItem);
+            hidden.Add(sourceToolStripMenuItem);
+            hidden.Add(optionsToolStripMenuItem);
+            hidden.Add(commentToolStripMenuItem);
+            hidden.Add(contentsToolStripMenuItem);
+            hidden.Add(aboutXMLNotepadToolStripMenuItem, true);
+            hidden.Add(elementAfterToolStripMenuItem);
+            hidden.Add(elementBeforeToolStripMenuItem);
+            hidden.Add(elementChildToolStripMenuItem);
+            hidden.Add(attributeBeforeToolStripMenuItem);
+            hidden.Add(attributeAfterToolStripMenuItem);
+            hidden.Add(attributeChildToolStripMenuItem);
+            hidden.Add(textBeforeToolStripMenuItem);
+            hidden.Add(textAfterToolStripMenuItem);
+            hidden.Add(textChildToolStripMenuItem);
+            hidden.Add(commentBeforeToolStripMenuItem);
+            hidden.Add(commentAfterToolStripMenuItem);
+            hidden.Add(commentChildToolStripMenuItem);
+            hidden.Add(cdataBeforeToolStripMenuItem);
+            hidden.Add(cdataAfterToolStripMenuItem);
+            hidden.Add(cdataChildToolStripMenuItem);
+            hidden.Add(PIBeforeToolStripMenuItem);
+            hidden.Add(PIAfterToolStripMenuItem);
+            hidden.Add(PIChildToolStripMenuItem);
+            hidden.Add(newWindowToolStripMenuItem);
+            hidden.Add(schemasToolStripMenuItem, true);
+            hidden.Add(nextErrorToolStripMenuItem);
+            hidden.Add(compareXMLFilesToolStripMenuItem);
+            hidden.Add(gotoDefinitionToolStripMenuItem);
+            hidden.Add(expandXIncludesToolStripMenuItem);
+            hidden.Add(exportErrorsToolStripMenuItem);
+            hidden.Add(toolStripMenuItemUpdate);
+            hidden.Add(changeToElementToolStripMenuItem1);
+            hidden.Add(changeToAttributeToolStripMenuItem1);
+            hidden.Add(changeToTextToolStripMenuItem1);
+            hidden.Add(changeToCDATAToolStripMenuItem1);
+            hidden.Add(changeToCommentToolStripMenuItem1);
+            hidden.Add(changeToProcessingInstructionToolStripMenuItem);
+            hidden.Add(incrementalSearchToolStripMenuItem);
+            hidden.Add(renameToolStripMenuItem1);
+            hidden.Add(replaceToolStripMenuItem);
+            this.Controls.Add(hidden);
         }
 
         protected virtual void InitializeHelp(HelpProvider hp)
@@ -503,8 +578,39 @@ namespace XmlNotepad
             }
             this.closing = true;
             this._delayedActions.Close();
-            SaveConfig();
+
+            SaveSettings(e);
+            
             base.OnClosing(e);
+        }
+
+        private void SaveSettings(CancelEventArgs e)
+        {
+            try
+            {
+                SaveConfig();
+            }
+            catch (Exception ex)
+            {
+                if (this._settings.DiscardChanges)
+                {
+                    // prompt the user only once per process.
+                }
+                else
+                {
+                    var rc = MessageBox.Show(this, "Error saving " + this._settings.FileName + "\r\n\r\n" + 
+                        ex.Message + "\r\n\r\nWould you like to discard your changes to the settings?",
+                        "Error saving settings", MessageBoxButtons.YesNo, MessageBoxIcon.Error);
+                    if (rc == DialogResult.No)
+                    {
+                        e.Cancel = true;
+                    }
+                    else
+                    {
+                        this._settings.DiscardChanges = true;
+                    }
+                }
+            }
         }
 
         protected override void OnClosed(EventArgs e)
@@ -736,11 +842,13 @@ namespace XmlNotepad
             {
                 this.helpProvider1.HelpNamespace = this._helpService.XsltHelp;
                 this.CheckWebViewVersion();
+                this.xsltViewer.Visible = true;
                 this.DisplayXsltResults();
             }
             else
             {
                 this.helpProvider1.HelpNamespace = this._helpService.DefaultHelp;
+                this.xsltViewer.Visible = false;
                 this.xsltViewer.OnClosed(); // good time to cleanup temp files.
             }
         }
@@ -1463,8 +1571,12 @@ namespace XmlNotepad
             this._settings["TreeViewSize"] = this.xmlTreeView1.ResizerPosition;
             this._settings["RecentFiles"] = this._recentFiles.ToArray();
             this._settings["RecentXsltFiles"] = this._recentXsltFiles.ToArray();
-            var path = this._settings.FileName;
-            this._settings.Save(path);
+            if (this.Settings.IsDirty)
+            {
+                var path = this._settings.FileName;
+                Debug.WriteLine("Saving settings: " + path);
+                this._settings.Save(path);
+            }
         }
 
         #region  ISite implementation
@@ -1548,7 +1660,7 @@ namespace XmlNotepad
             switch (name)
             {
                 case "File":
-                    // load the new settiongs but don't move the window or anything if another instances of xmlnotepad.exe changed
+                    // load the new settings but don't move the window or anything if another instances of xmlnotepad.exe changed
                     // the settings.xml file.
                     if (!this._loading)
                     {
@@ -1642,6 +1754,10 @@ namespace XmlNotepad
                     }
                     break;
             }
+
+            this._delayedActions.StartDelayedAction("DelaySaveSettings", 
+                () => SaveSettings(new CancelEventArgs()), 
+                TimeSpan.FromSeconds(1));
         }
 
         public void SaveErrors(string filename)

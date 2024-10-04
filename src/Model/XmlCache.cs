@@ -80,6 +80,8 @@ namespace XmlNotepad
         /// </summary>
         public string XsltDefaultOutput { get; set; }
 
+        public HashSet<string> AllNamespaces => this._loader.AllNamespaces;
+
         public bool Dirty => this._dirty;
 
         public Settings Settings => this._settings;
@@ -168,6 +170,16 @@ namespace XmlNotepad
         {
             get { return this._schemaCache; }
             set { this._schemaCache = value; }
+        }
+
+        /// <summary>
+        /// Load the cache from an existing document instance.
+        /// </summary>
+        /// <param name="doc"></param>
+        public void Load(XmlDocument doc)
+        {
+            this.Document = doc;
+            FireModelChanged(ModelChangeType.Reloaded, doc);
         }
 
         /// <summary>
@@ -291,6 +303,11 @@ namespace XmlNotepad
             Load(filename);
         }
 
+        public bool IsEmpty()
+        {
+            return this.Document.ChildNodes.Count == 0;
+        }
+
         public void Clear()
         {
             this._renamed = null;
@@ -367,7 +384,6 @@ namespace XmlNotepad
             {
                 StopFileWatch();
                 XmlWriterSettings s = new XmlWriterSettings();
-                EncodingHelpers.InitializeWriterSettings(s, this._site);
 
                 var encoding = GetEncoding();
                 s.Encoding = encoding;
@@ -388,8 +404,14 @@ namespace XmlNotepad
                 if (noBom)
                 {
                     MemoryStream ms = new MemoryStream();
-                    using (XmlWriter w = XmlWriter.Create(ms, s))
+                    // The new XmlWriter.Create method returns a writer that is too strict and does not
+                    // allow xmlns attributes that override the parent element NamespaceURI.  Using that
+                    // writer would require very complex (and very slow) recreation of XML Element nodes 
+                    // in the tree (and therefore all their children also) every time and xmlns attribute
+                    // is modified.
+                    using (XmlTextWriter w = new XmlTextWriter(ms, encoding))
                     {
+                        EncodingHelpers.InitializeWriterSettings(w, this._site);
                         _doc.Save(w);
                     }
                     ms.Seek(0, SeekOrigin.Begin);
@@ -399,8 +421,9 @@ namespace XmlNotepad
                 }
                 else
                 {
-                    using (XmlWriter w = XmlWriter.Create(filename, s))
+                    using (XmlTextWriter w = new XmlTextWriter(filename, encoding))
                     {
+                        EncodingHelpers.InitializeWriterSettings(w, this._site);
                         _doc.Save(w);
                     }
                 }

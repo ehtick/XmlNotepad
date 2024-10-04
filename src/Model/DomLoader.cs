@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
 using System.Xml;
+using System.Xml.Linq;
 using System.Xml.Schema;
 
 namespace XmlNotepad
@@ -19,17 +20,27 @@ namespace XmlNotepad
         private XmlReader _reader;
         private IServiceProvider _site;
         private SchemaCache _sc;
+        private long _maxLineIndex;
+        private HashSet<string> _allNamespaces = new HashSet<string>();
 
         public DomLoader(IServiceProvider site, SchemaCache cache)
         {
             this._site = site;
             this._sc = cache;
+            this._maxLineIndex = Settings.Instance.GetLong("MaximumLineIndex");
         }
+
+        public HashSet<string> AllNamespaces => _allNamespaces;
 
         void AddToTable(XmlNode node)
         {
+            var nsuri = node.NamespaceURI;
+            if (!string.IsNullOrEmpty(nsuri))
+            {
+                _allNamespaces.Add(nsuri);
+            }
             // stop these tables from eating up too much memory on very large XML documents.
-            if (this._lineInfos.Count < 1000000)
+            if (this._lineInfos.Count < _maxLineIndex)
             {
                 var info = new LineInfo(_reader);
                 info.Node = node;
@@ -426,6 +437,14 @@ namespace XmlNotepad
             if (attr.NamespaceURI == XmlStandardUris.XsiUri)
             {
                 HandleXsiAttribute(attr);
+            }
+            else if (attr.NamespaceURI == XmlStandardUris.XmlnsUri)
+            {
+                var nsuri = attr.InnerText;
+                if (!string.IsNullOrEmpty(nsuri))
+                {
+                    _allNamespaces.Add(nsuri);
+                }
             }
             return attr;
         }

@@ -9,8 +9,18 @@
     <history>https://github.com/microsoft/XmlNotepad/blob/master/src/Updates/Updates.xml</history>
     <frequency>1.00:00:00</frequency>
   </application>
+  <version number="2.9.0.14">
+    <bug>Fix issue #418: check setttings-file for "read-only".</bug>
+    <bug>Fix issue #398: XmlNotepad detects xml-errors at empty nillable xsd:date Elements, but xml is correct</bug>
+  </version>
+	<version number="2.9.0.13">
+		<feature>Issue 409: Not able to validate XML against multiple not referenced Schemas</feature>
+    <feature>Issue 329: Incomplete schema validation of large XML files ( > ~20 MB).</feature>
+    <bug>Report invalid characters undex 0x20.</bug>
+    <bug>Fix unit tests so they run on Windows 11, including a work around for https://github.com/dotnet/winforms/issues/10244.</bug>
+	</version>
 	<version number="2.9.0.12">
-		<feature>Issue 324: Generate xml from schema, see ttps://youtu.be/5I_q1oXz02I.</feature>
+		<feature>Issue 324: Generate xml from schema, see https://youtu.be/5I_q1oXz02I.</feature>
 		<feature>Issue 385:: "XML Reload" removes loaded XSLT. You can now get auto-reload when xml file changes on disk
 		and you can turn off the prompt in options dialog and it will reapply the XSLT automatically.</feature>
 		<feature>update to WebView2 version 1.0.2739.15</feature>

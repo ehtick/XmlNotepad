@@ -384,8 +384,9 @@ namespace XmlNotepad
                                 {
                                     if (prefix != "xmlns" && !XmlHelpers.IsPrefixInScope(context, prefix))
                                     {
-                                        XmlAttribute attr = doc.CreateAttribute("xmlns", inode.XmlNode.Prefix, XmlHelpers.XmlnsUri);
+                                        XmlAttribute attr = doc.CreateAttribute("xmlns", inode.XmlNode.Prefix, XmlStandardUris.XmlnsUri);
                                         attr.Value = inode.XmlNode.NamespaceURI;
+                                        this._model.AllNamespaces.Add(inode.XmlNode.NamespaceURI);
                                         scope.Attributes.Append(attr);
                                         xn.Children.Add(new XmlTreeNode(this, (XmlTreeNode)e.Node, attr));
                                         xn.Expand();
@@ -395,8 +396,9 @@ namespace XmlNotepad
                                 {
                                     if (!XmlHelpers.IsDefaultNamespaceInScope(context, e.Namespace))
                                     {
-                                        XmlAttribute attr = doc.CreateAttribute("", "xmlns", XmlHelpers.XmlnsUri);
+                                        XmlAttribute attr = doc.CreateAttribute("", "xmlns", XmlStandardUris.XmlnsUri);
                                         attr.Value = e.Namespace;
+                                        this._model.AllNamespaces.Add(e.Namespace);
                                         scope.Attributes.Append(attr);
                                         xn.Children.Add(new XmlTreeNode(this, (XmlTreeNode)e.Node, attr));
                                         xn.Expand();
@@ -489,6 +491,7 @@ namespace XmlNotepad
 
         void myTreeView_AfterBatchUpdate(object sender, EventArgs e)
         {
+            this.SyncScrollbars();
             if (this.SelectedNode != null)
             {
                 ScrollIntoView(this.SelectedNode);
@@ -754,13 +757,12 @@ namespace XmlNotepad
 
         internal void SyncScrollbars()
         {
-
             if (this.hScrollBar1.Visible)
             {
                 int x = this.resizer.Left;
                 int w = this._myTreeView.VirtualWidth + 10;
                 this._myTreeView.Height = this.Height - this.hScrollBar1.Height;
-                int hScrollMax = 10 + ((w - x) / HScrollIncrement);
+                int hScrollMax = Math.Max(0, 10 + ((w - x) / HScrollIncrement));
                 this.hScrollBar1.Minimum = 0;
                 this.hScrollBar1.Maximum = hScrollMax;
                 this.hScrollBar1.Value = Math.Min(this.hScrollBar1.Value, hScrollMax);
@@ -1810,6 +1812,7 @@ namespace XmlNotepad
         private string _editLabel;
         private string _schemaAwareText;
         private Color _schemaAwareColor;
+        private TreeNodeCollection _lazyChildren;
 
         public XmlTreeNode(XmlTreeView view)
         {
@@ -1946,7 +1949,10 @@ namespace XmlNotepad
         {
             base.Invalidate();
             Init();
-            this.XmlTreeView.SyncScrollbars();
+            if (!this.XmlTreeView.TreeView.InBatchUpdate)
+            {
+                this.XmlTreeView.SyncScrollbars();
+            }
         }
 
         public Settings Settings { get { return this._settings; } }
@@ -2059,7 +2065,11 @@ namespace XmlNotepad
         {
             get
             {
-                return new XmlTreeNodeCollection(this);
+                if (this._lazyChildren  == null)
+                {
+                    this._lazyChildren = new XmlTreeNodeCollection(this);
+                }
+                return _lazyChildren;
             }
         }
 
@@ -2187,7 +2197,7 @@ namespace XmlNotepad
                 {
                     XmlAttribute a = acol[i];
                     string value = a.Value;
-                    if (a.NamespaceURI == XmlHelpers.XmlnsUri)
+                    if (a.NamespaceURI == XmlStandardUris.XmlnsUri)
                     {
                         if (!hasXmlNs)
                         {
